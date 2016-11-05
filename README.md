@@ -1,5 +1,7 @@
 # Ember-what-session
 
+[![Build Status](https://travis-ci.org/w-hat/ember-what-session.svg?branch=master)](https://travis-ci.org/w-hat/ember-what-session)
+
 This Ember addon provides a simple authentication service called `session`
 which holds a user's identity as a JWT bearer token in `localStorage` after
 authenticating with Facebook, Github, or Google via OAuth2.
