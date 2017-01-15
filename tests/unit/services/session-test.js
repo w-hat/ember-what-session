@@ -17,7 +17,27 @@ test('It should have an authenticate method.', function(assert) {
   const service = this.subject();
   assert.ok(service.authenticate, 'authenticate should exist');
   assert.equal(typeof service.authenticate, 'function');
-  assert.equal(service.authenticate.length, 1);
+  assert.equal(service.authenticate.length, 2);
+});
+
+test('It should open a popup for authentication', function(assert) {
+  const service = this.subject();
+  let inFocus = false;
+  service.set('providers', {
+    'arimaa': { 'url': 'https://arimaa.com/oauth' }
+  });
+  const windo = {
+    open(url, name, options) {
+      assert.equal(url, 'https://arimaa.com/oauth');
+      assert.equal(name, 'what-session-popup');
+      assert.equal(typeof options, 'string');
+      return {
+        focus() { inFocus = true; }
+      };
+    }
+  };
+  service.authenticate('arimaa', windo);
+  assert.ok(inFocus);
 });
 
 test('It should have an deauthenticate method.', function(assert) {

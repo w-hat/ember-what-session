@@ -13,12 +13,12 @@ export default Ember.Service.extend({
   token: null,
   fields: {},
   
-  authenticate(provider) {
-    const config = getOwner(this).resolveRegistration('config:environment');
-    const url = config && config.whatSession.providers[provider].url;
+  authenticate(provider, windo) {
+    const url = this.get('providers')[provider].url;
     const options = 'left=' + (screen.width /2 - 250) +
                     ',top=' + (screen.height/2 - 250) + ',width=500,height=500';
-    window.open(url, 'what-session-popup', options).focus();
+    if (!windo) { windo = window; }
+    windo.open(url, 'what-session-popup', options).focus();
   },
   
   deauthenticate() {
@@ -76,6 +76,7 @@ export default Ember.Service.extend({
     const session = this;
     const config = getOwner(this).resolveRegistration('config:environment');
     this.set('fields', config && config.whatSession.fields);
+    this.set('providers', config && config.whatSession.providers);
     session.refresh();
     Ember.$(window).on('storage.what-session-token', function(/* event */) {
       session.refresh();
