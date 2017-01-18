@@ -30,7 +30,7 @@ module.exports = function(environment) {
       tokenUrl: '/token',
       redirectBase: 'http://localhost:4200',
       providers: {
-        google:   { id: 'GOOGLE_CLIENT_ID' },
+        google: { id: 'GOOGLE_CLIENT_ID' },
       }
     },
 // ...
