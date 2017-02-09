@@ -14,7 +14,8 @@ export default Ember.Service.extend({
   fields: {},
   
   authenticate(provider, windo) {
-    const url = this.get('providers')[provider].url;
+    const session = this.session || this;
+    const url = session.get('providers')[provider].url;
     const options = 'left=' + (screen.width /2 - 250) +
                     ',top=' + (screen.height/2 - 250) + ',width=500,height=500';
     if (!windo) { windo = window; }
@@ -24,7 +25,7 @@ export default Ember.Service.extend({
   deauthenticate() {
     localStorage.removeItem('what-session-token');
     setHeader('');
-    const session = (this.session ? this.session : this);
+    const session = this.session || this;
     session.set('token', null);
     session.set('claims', null);
     for (let key in session.get('fields')) { session.set(key, null); }
