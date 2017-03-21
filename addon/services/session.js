@@ -54,7 +54,7 @@ export default Ember.Service.extend({
         this.set(key, value);
       }
     } catch (e) {
-      console.log('Token error:', token, e);
+      Ember.Logger.log('Token error:', token, e);
       this.deauthenticate();
     }
   },
