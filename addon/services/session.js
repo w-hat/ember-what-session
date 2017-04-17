@@ -4,7 +4,8 @@ const { getOwner } = Ember;
 
 function setHeader(token) {
   Ember.$.ajaxPrefilter(function(options, originalOptions, jqXHR) {
-    jqXHR.setRequestHeader("Authorization", 'Bearer ' + token);
+    const bearer = (token ? 'Bearer ' + token : '');
+    jqXHR.setRequestHeader("Authorization", bearer);
   });
 }
 
@@ -84,3 +85,4 @@ export default Ember.Service.extend({
     });
   }
 });
+
