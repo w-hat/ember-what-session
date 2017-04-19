@@ -14,7 +14,10 @@ export default Ember.Service.extend({
   token: null,
   fields: {},
   
-  authenticate(provider, windo) {
+  authenticate(provider, windo, reloadPage) {
+    if (reloadPage) {
+      localStorage.setItem('what-session-reload-page', true);
+    }
     const session = this.session || this;
     const url = session.get('providers')[provider].url;
     const options = 'left=' + (screen.width /2 - 250) +
@@ -23,13 +26,17 @@ export default Ember.Service.extend({
     windo.open(url, 'what-session-popup', options).focus();
   },
   
-  deauthenticate() {
+  deauthenticate(reloadPage) {
     localStorage.removeItem('what-session-token');
-    setHeader('');
-    const session = this.session || this;
-    session.set('token', null);
-    session.set('claims', null);
-    for (let key in session.get('fields')) { session.set(key, null); }
+    if (reloadPage) {
+      window.location.reload();
+    } else {
+      setHeader('');
+      const session = this.session || this;
+      session.set('token', null);
+      session.set('claims', null);
+      for (let key in session.get('fields')) { session.set(key, null); }
+    }
   },
   
   refresh() {
@@ -81,6 +88,10 @@ export default Ember.Service.extend({
     this.set('providers', config && config.whatSession.providers);
     session.refresh();
     Ember.$(window).on('storage.what-session-token', function(/* event */) {
+      if (localStorage.getItem('what-session-reload-page')) {
+        localStorage.removeItem('what-session-reload-page');
+        window.location.reload();
+      }
       session.refresh();
     });
   }

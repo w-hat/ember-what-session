@@ -17,7 +17,7 @@ test('It should have an authenticate method.', function(assert) {
   const service = this.subject();
   assert.ok(service.authenticate, 'authenticate should exist');
   assert.equal(typeof service.authenticate, 'function');
-  assert.equal(service.authenticate.length, 2);
+  assert.equal(service.authenticate.length, 3);
 });
 
 test('It should open a popup for authentication', function(assert) {
@@ -44,7 +44,7 @@ test('It should have an deauthenticate method.', function(assert) {
   const service = this.subject();
   assert.ok(service.deauthenticate, 'deauthenticate should exist');
   assert.equal(typeof service.deauthenticate, 'function');
-  assert.equal(service.deauthenticate.length, 0);
+  assert.equal(service.deauthenticate.length, 1);
   localStorage.setItem('what-session-token', 'OJWb5e8SG8c');
   service.set('fields', {'theuser': 'uid'});
   service.set('token', 'OJWb5e8SG8c');

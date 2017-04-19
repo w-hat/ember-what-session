@@ -30,6 +30,7 @@ export function initialize(application) {
     }, (error) => {
       console.log('Error:', error);
       alert(error.responseText);
+      localStorage.removeItem('what-session-reload-page');
     });
   }
 }
