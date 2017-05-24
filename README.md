@@ -36,7 +36,7 @@ module.exports = function(environment) {
 // ...
 ```
 
-Call the `service.authenticate` function with the name of a provider.
+Call the `session.authenticate` function with the name of a provider.
 
 ```hbs
 <a {{action session.authenticate 'google'}}>Login</a>
