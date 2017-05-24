@@ -2,6 +2,60 @@ import Ember from 'ember';
 
 const { getOwner } = Ember;
 
+export default Ember.Service.extend({
+  token: null,
+  
+  claims: Ember.computed('token', function() {
+    return getClaims(this.get('token'));
+  }),
+  
+  authenticate(provider, username, password, windo) {
+    const session = this.session || this;
+    const url = session.get('providers')[provider].url;
+    if (url.match(/^\//)) {
+      const data = { username, password };
+      Ember.$.ajax({ url, data }).then(res => {
+        localStorage.setItem('what-session-token', JSON.stringify(res.token));
+      });
+    } else {
+      const options = 'left='+(screen.width /2 - 250)+
+                      ',top='+(screen.height/2 - 250)+',width=500,height=500';
+      (windo || window).open(url, 'what-session-popup', options).focus();
+    }
+  },
+  
+  deauthenticate() {
+    const session = this.session || this;
+    localStorage.removeItem('what-session-token');
+    setHeader('');
+    session.set('token', null);
+  },
+  
+  refresh() {
+    const session = this.session || this;
+    const token = JSON.parse(localStorage.getItem('what-session-token'));
+    if (!token || isExpired(token)) {
+      session.deauthenticate();
+    } else {
+      setHeader(token);
+      session.set('token', token);
+    }
+  },
+  
+  init() {
+    this._super(...arguments);
+    const session = this;
+    const config = getOwner(session).resolveRegistration('config:environment');
+    const providers = config && config.whatSession.providers;
+    session.set('providers', providers);
+    session.refresh();
+    Ember.$(window).on('storage.what-session-token', function(/* event */) {
+      session.refresh();
+    });
+  }
+});
+
+
 function setHeader(token) {
   Ember.$.ajaxPrefilter(function(options, originalOptions, jqXHR) {
     const bearer = (token ? 'Bearer ' + token : '');
@@ -9,91 +63,17 @@ function setHeader(token) {
   });
 }
 
-export default Ember.Service.extend({
-  store: Ember.inject.service(),
-  token: null,
-  fields: {},
-  
-  authenticate(provider, windo, reloadPage) {
-    if (reloadPage) {
-      localStorage.setItem('what-session-reload-page', true);
-    }
-    const session = this.session || this;
-    const url = session.get('providers')[provider].url;
-    const options = 'left=' + (screen.width /2 - 250) +
-                    ',top=' + (screen.height/2 - 250) + ',width=500,height=500';
-    if (!windo) { windo = window; }
-    windo.open(url, 'what-session-popup', options).focus();
-  },
-  
-  deauthenticate(reloadPage) {
-    localStorage.removeItem('what-session-token');
-    if (reloadPage) {
-      window.location.reload();
-    } else {
-      setHeader('');
-      const session = this.session || this;
-      session.set('token', null);
-      session.set('claims', null);
-      for (let key in session.get('fields')) { session.set(key, null); }
-    }
-  },
-  
-  refresh() {
-    const token = JSON.parse(localStorage.getItem('what-session-token'));
-    if (!token) {
-      this.deauthenticate();
-      return;
-    }
-    try {
-      const claims64 = token.split('.')[1].replace('-', '+').replace('_', '/');
-      const claims = JSON.parse(window.atob(claims64));
-      if (claims.exp && (claims.exp < (Date.now() / 1000))) {
-        throw new Error('Expired token.');
-      }
-      setHeader(token);
-      this.set('token', token);
-      this.set('claims', claims);
-      const fields = this.get('fields');
-      const store = this.get('store');
-      for (let key in fields) {
-        const id = claims[fields[key]];
-        const value = (store ? store.findRecord(key, id) : id);
-        this.set(key, value);
-      }
-    } catch (e) {
-      Ember.Logger.log('Token error:', token, e);
-      this.deauthenticate();
-    }
-  },
-  
-  can(permission) {
-    const claims = this.get('claims');
-    const permissions = claims && (claims.can || claims.permissions);
-    //return permissions && permissions.includes(permission);
-    let can = false;
-    if (permissions) {
-      for (let i = 0; i < permissions.length; i++) {
-        if (permissions[i] === permission) { can = true; break; }
-      }
-    }
-    return can;
-  },
-  
-  init() {
-    this._super(...arguments);
-    const session = this;
-    const config = getOwner(this).resolveRegistration('config:environment');
-    this.set('fields', config && config.whatSession.fields);
-    this.set('providers', config && config.whatSession.providers);
-    session.refresh();
-    Ember.$(window).on('storage.what-session-token', function(/* event */) {
-      if (localStorage.getItem('what-session-reload-page')) {
-        localStorage.removeItem('what-session-reload-page');
-        window.location.reload();
-      }
-      session.refresh();
-    });
+function getClaims(token) {
+  if (token) {
+    const claims64 = token.split('.')[1].replace('-', '+').replace('_', '/');
+    return JSON.parse(window.atob(claims64));
+  } else {
+    return {};
   }
-});
+}
+
+function isExpired(token) {
+  const claims = getClaims(token);
+  return claims.exp && (claims.exp < (Date.now() / 1000));
+}
 

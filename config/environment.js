@@ -2,10 +2,12 @@
 
 'use strict';
 
+// The sole purpose of the mumbo-jumbo in this file is to determine the URL for
+// each of the providers.
+
 module.exports = function(environment, appConfig) {
   const whatSession = {
     providers: buildUrls(appConfig),
-    fields: {},
     //tokenUrl: '/token',
   };
   return { whatSession };
@@ -31,6 +33,7 @@ function buildUrls(appConfig) {
 }
 
 function buildUrl(key, options) {
+  if (options.url) { return options.url; }
   let url = options.baseUrl + '?';
   url += 'response_type=' + options.response_type;
   const client_id = options.client_id || options.id || options.clientId 
@@ -58,6 +61,9 @@ function buildUrl(key, options) {
 }
 
 const defaults = {
+  local: {
+    url: '/token',
+  },
   all: {
     redirectBase: 'http://localhost:4200',
     response_type: 'code',
@@ -68,12 +74,12 @@ const defaults = {
     scope: 'email',
   },
   google: {
-    baseUrl: 'https://accounts.google.com/o/oauth2/auth',
+    baseUrl: 'https://accounts.google.com/o/oauth2/auth', // TODO Update?
     scope: 'profile email',
     approval_prompt: 'auto',
   },
   github: {
     baseUrl: 'https://github.com/login/oauth/authorize',
     scope: 'user:email',
-  }
+  },
 };

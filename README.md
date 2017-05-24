@@ -3,19 +3,17 @@
 [![Build Status](https://travis-ci.org/w-hat/ember-what-session.svg?branch=master)](https://travis-ci.org/w-hat/ember-what-session)
 
 This Ember addon provides a simple authentication service called `session`
-which holds a user's identity as a JWT bearer token in `localStorage` after
-authenticating with Facebook, Github, or Google via OAuth2.
+which persists a JWT bearer token in `localStorage` after
+authenticating via OAuth2 or an username/password combination.
+Facebook, Google, and Github are supported OAuth2 providers.
 
 
 ## Alternatives
 
-The addon [ember-simple-auth](https://github.com/simplabs/ember-simple-auth)
-is an alternative for storing data in a session, and the addon
-[torii](https://github.com/Vestorly/torii) is an alternative for performing
-OAuth requests.  Those addons are much more featureful and more mature than
-ember-what-session.  They are also more bloated.  For example, even if your
-application never authenticates with Azure, including Torii automatically 
-includes code for Azure OAuth in your app.
+This addon provides the main features of the combination of
+[ember-simple-auth](https://github.com/simplabs/ember-simple-auth) and
+[torii](https://github.com/Vestorly/torii) without all of the cruft.
+However, those addons are more featureful and more configurable.
 
 
 ## Usage
@@ -26,20 +24,26 @@ Configure the addon in `config/environment.js`:
 module.exports = function(environment) {
   var ENV = {
     whatSession: {
-      fields: { user: 'sub' },
       tokenUrl: '/token',
       redirectBase: 'http://localhost:4200',
       providers: {
+        local: { url: '/token' },
         google: { id: 'GOOGLE_CLIENT_ID' },
       }
     },
 // ...
 ```
 
-Call the `session.authenticate` function with the name of a provider.
+Call the `session.authenticate` function with the name of a provider (and with
+a username and password for local authentication).
 
 ```hbs
-<a {{action session.authenticate 'google'}}>Login</a>
+<button {{action session.authenticate 'google'}}>Login with Google</button>
+<form>
+  {{input value=email}}
+  {{input value=password type='password'}}
+  <button {{action session.authenticate 'local' email password}}>Login</button>
+</form>
 ```
 
 A popup will then present the user with the OAuth2 prompt.  Note that the
@@ -48,33 +52,49 @@ in the provider's settings online.
 If the user approves, ember-what-session will handle the callback for you and
 send a request to your backend to `tokenUrl`.
 Your backend should respond with a JWT after fetching the user's information
-from the appropriate provider.
+from the appropriate provider (or verifying that the password is correct).
 
 ```json
 { "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEyM30.5GmbIy8VoP6A4kR6zJaks7VGDbhIiTz-1b6EZfiRcgE" }
 ```
 
-Ember-what-session will use the id's  provided in the token according to
-`fields` to populate the `session` service.
-Typically, the `sub` claim from the JWT will contain a user id, which
-will be fetched from the `store`.  Then you can use `session.user` anywhere in
-your application since ember-what-session injects itself into components,
-controllers, and routes.
+Ember-what-session will decode the token and provide access to its contents via
+`session.claims`.  You may use the claims to populate a service that extends
+`session` or a different service that injects it.
+
+```js
+import Ember from 'ember';
+import WhatSession from "ember-what-session/services/session";
+
+export default WhatSession.extend({
+  store: Ember.inject.service(),
+  user: Ember.computed('claims.sub', function() {
+    const user_id = this.get('claims.sub');
+    if (user_id) {
+      return this.get('store').findRecord('user', user_id);
+    } else {
+      return null;
+    }
+  }),
+});
+```
+
+Then you can use `session.user` anywhere in your application since
+ember-what-session injects itself into components, controllers, and routes.
 
 ```hbs
 {{#if session.user}}
-  <p>{{session.user.name}}</p>
-  <a {{action session.deauthenticate}}>Logout</a>
+  <span>{{session.user.name}}</span>
+  <button {{action session.deauthenticate}}>Logout</button>
 {{/if}}
 ```
 
 It's that easy!  And the session will be kept synchronized between tabs.
 
 
-## Production Concerns
+## Planned Features
 
-This addon is not ready for production.  Do not use it in production because
-it's best to be careful with code related to authentication.
+This addon does not support automatically refreshing tokens yet.
 
 
 ## Backend Example
@@ -88,27 +108,46 @@ from the relevant provider and then return a token.
 
 ```js
 import Koa from 'koa';
+import KoaRouter from 'koa-router';
 import jwt from 'jsonwebtoken';
 import WhatAuth from 'whatauth';
 
+const jwt_secret = "JWT_SECRET_123";
+
 const whatauth = new WhatAuth({
-  google: {
-    id:     "GOOGLE_CLIENT_ID",
-    secret: "GOOGLE_CLIENT_SECRET",
-  }
+  google: { id: "GOOGLE_CLIENT_ID", secret: "GOOGLE_CLIENT_SECRET" },
 });
 
 const app = new Koa();
+const router = KoaRouter();
 
-app.use(async ctx => {
+router.get('/token', async ctx => {
   const profile = await whatauth.fetch(ctx.query);
   const token = jwt.sign({
     name: profile.name,
     sub: profile.ident,
     exp: Math.floor(Date.now()/1000) + 28800,
-  }, "JWT_SECRET_123");
-  ctx.body = {token};
+  }, jwt_secret);
+  ctx.body = { token };
 });
+
+router.get('/hello', loadUser, ctx => {
+  ctx.body = { hello: ctx.state.user.name };
+});
+
+async function loadUser(ctx, next) {
+  const auth = ctx.header.authorization;
+  if (!auth) {
+    ctx.status = 401;
+  } else {
+    const token = auth.split("Bearer ")[1];
+    const claims = await jwt.verifyAsync(token, jwt_secret);
+    ctx.state.user = { name: claims.name };
+    await next();
+  }
+}
+
+app.use(main.routes());
 
 module.exports = app.listen(3000);
 ```

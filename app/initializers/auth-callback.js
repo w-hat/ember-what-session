@@ -2,8 +2,8 @@ import Ember from 'ember';
 import ENV from '../config/environment';
 
 export function initialize(application) {
-  const win = application.window || window;
-  const location = win.location;
+  const windo = application.window || window;
+  const location = windo.location;
   const path_m = location.pathname.match(/\/auth\/callback\/(.*)/);
   if (path_m) {
     application.deferReadiness();
@@ -16,11 +16,10 @@ export function initialize(application) {
     
     Ember.$.ajax({ url, data }).then((result) => {
       localStorage.setItem('what-session-token', JSON.stringify(result.token));
-      win.close();
+      windo.close();
     }, (error) => {
-      Ember.Logger.log('Error:', error);
-      alert(error.responseText);
-      localStorage.removeItem('what-session-reload-page');
+      Ember.Logger.log('Authentication Error:', error);
+      alert("Authentication Error");
     });
   }
 }
